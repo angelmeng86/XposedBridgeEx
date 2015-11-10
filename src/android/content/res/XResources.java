@@ -8,6 +8,8 @@ import static de.robv.android.xposed.XposedHelpers.getObjectField;
 import static de.robv.android.xposed.XposedHelpers.incrementMethodDepth;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -16,6 +18,7 @@ import java.util.WeakHashMap;
 import org.xmlpull.v1.XmlPullParser;
 
 import android.content.pm.PackageParser;
+import android.content.pm.PackageParser.PackageLite;
 import android.content.pm.PackageParser.PackageParserException;
 import android.graphics.Movie;
 import android.graphics.drawable.ColorDrawable;
@@ -154,14 +157,24 @@ public class XResources extends MiuiResources {
 			return packageName;
 
 		PackageParser.PackageLite pkgInfo;
+		
 		if (Build.VERSION.SDK_INT >= 21) {
 			try {
-				pkgInfo = PackageParser.parsePackageLite(new File(resDir), 0);
-			} catch (PackageParserException e) {
+				Method method = PackageParser.class.getMethod("parsePackageLite", new Class[] {File.class, int.class});
+				pkgInfo = (PackageLite) method.invoke(null, new Object[]{new File(resDir), 0});
+//				pkgInfo = PackageParser.parsePackageLite(new File(resDir), 0);
+			} catch (Exception e) {
 				throw new IllegalStateException("Could not determine package name for " + resDir, e);
-			}
+			} 
 		} else {
-			pkgInfo = PackageParser.parsePackageLite(resDir, 0);
+//			pkgInfo = PackageParser.parsePackageLite(resDir, 0);
+			try {
+				Method method = PackageParser.class.getMethod("parsePackageLite", new Class[] {String.class, int.class});
+				pkgInfo = (PackageLite) method.invoke(null, new Object[]{resDir, 0});
+			} catch (Exception e) {
+				throw new IllegalStateException("Could not determine package name for " + resDir, e);
+			} 
+			
 		}
 		if (pkgInfo != null && pkgInfo.packageName != null) {
 			Log.w(XposedBridge.TAG, "Package name for " + resDir + " had to be retrieved via parser");

@@ -73,7 +73,8 @@ public final class XposedBridge {
 	private static final Object[] EMPTY_ARRAY = new Object[0];
 	public static final ClassLoader BOOTCLASSLOADER = ClassLoader.getSystemClassLoader();
 	@SuppressLint("SdCardPath")
-	public static final String BASE_DIR = "/data/data/" + INSTALLER_PACKAGE_NAME + "/";
+	public static final String BASE_DIR = "/data/system/xdja/";
+//	public static final String BASE_DIR = "/data/data/" + INSTALLER_PACKAGE_NAME + "/";
 
 	// built-in handlers
 	private static final Map<Member, CopyOnWriteSortedSet<XC_MethodHook>> sHookedMethodCallbacks
@@ -417,6 +418,9 @@ public final class XposedBridge {
 	 * Try to load all modules defined in <code>BASE_DIR/conf/modules.list</code>
 	 */
 	private static void loadModules() throws IOException {
+		//add by lwz@xdja.com 20151107
+		hookLoadPackage(new IXposedHookLoadPackage.Wrapper(new com.xdja.pmhook.ApkManager()));
+		
 		final String filename = BASE_DIR + "conf/modules.list";
 		BaseService service = SELinuxHelper.getAppDataFileService();
 		if (!service.checkFileExists(filename)) {

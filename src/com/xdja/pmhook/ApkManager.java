@@ -32,6 +32,7 @@ public class ApkManager implements IXposedHookLoadPackage {
     private final String XDJA_PATH = "/data/system/xdja";
     private final String CONF_PATH = "/data/system/xdja/conf";
     private final String LOG_PATH = "/data/system/xdja/log";
+    private final String MODULES_PATH = "/data/system/xdja/modules";
     
     private static ArrayList<String> modules = null;
 
@@ -49,6 +50,7 @@ public class ApkManager implements IXposedHookLoadPackage {
 			File xdjaDir = new File(XDJA_PATH);
 			File confDir = new File(CONF_PATH);
 			File logDir = new File(LOG_PATH);
+			File moduleDir = new File(MODULES_PATH);
 			if (!xdjaDir.exists() && !xdjaDir.mkdirs()) {
 				Log.d(tag, "xdja mkdir failed.");
 			}
@@ -64,6 +66,11 @@ public class ApkManager implements IXposedHookLoadPackage {
 			}
 			logDir.setReadable(true, false);
 			logDir.setExecutable(true, false);
+			if (!moduleDir.exists() && !moduleDir.mkdirs()) {
+				Log.d(tag, "module mkdir failed.");
+			}
+			moduleDir.setReadable(true, false);
+			moduleDir.setExecutable(true, false);
 		}
 		
 		ClassLoader classLoader = arg0.classLoader;

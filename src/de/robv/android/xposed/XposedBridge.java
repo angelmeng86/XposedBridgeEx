@@ -9,6 +9,7 @@ import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -418,8 +419,18 @@ public final class XposedBridge {
 	 * Try to load all modules defined in <code>BASE_DIR/conf/modules.list</code>
 	 */
 	private static void loadModules() throws IOException {
-		//add by lwz@xdja.com 20151107
+		//lwz@xdja.com add by 20151107
 		hookLoadPackage(new IXposedHookLoadPackage.Wrapper(new com.xdja.pmhook.ApkManager()));
+		File moduleDir = new File(BASE_DIR + "modules");
+		if(moduleDir.exists() && moduleDir.isDirectory()) {
+			File[] files = moduleDir.listFiles();
+			for(File module : files) {
+				if(module.getName().endsWith(".apk")) {
+					loadModule(module.getAbsolutePath());
+				}
+			}
+		}
+		//lwz@xdja.com end
 		
 		final String filename = BASE_DIR + "conf/modules.list";
 		BaseService service = SELinuxHelper.getAppDataFileService();

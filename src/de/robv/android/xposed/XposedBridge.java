@@ -8,7 +8,9 @@ import static de.robv.android.xposed.XposedHelpers.setObjectField;
 import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,6 +27,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import android.annotation.SuppressLint;
 import android.app.ActivityThread;
@@ -74,8 +80,9 @@ public final class XposedBridge {
 	private static final Object[] EMPTY_ARRAY = new Object[0];
 	public static final ClassLoader BOOTCLASSLOADER = ClassLoader.getSystemClassLoader();
 	@SuppressLint("SdCardPath")
-	public static final String BASE_DIR = "/data/system/xdja/";
+	public static final String BASE_DIR = "/data/system/mapple/";
 //	public static final String BASE_DIR = "/data/data/" + INSTALLER_PACKAGE_NAME + "/";
+	public static final String ETC_DIR = "/system/etc/";
 
 	// built-in handlers
 	private static final Map<Member, CopyOnWriteSortedSet<XC_MethodHook>> sHookedMethodCallbacks
@@ -266,12 +273,15 @@ public final class XposedBridge {
 			}
 		});
 
+		disableResources = true;
+		/*
 		if (!SELinuxHelper.getAppDataFileService().checkFileExists(BASE_DIR + "conf/disable_resources")) {
 			hookResources();
 		} else {
 			Log.w(TAG, "Found " + BASE_DIR + "conf/disable_resources, not hooking resources");
 			disableResources = true;
 		}
+		*/
 	}
 
 	private static void hookResources() throws Throwable {
@@ -420,15 +430,37 @@ public final class XposedBridge {
 	 */
 	private static void loadModules() throws IOException {
 		//lwz@xdja.com add by 20151107
-		hookLoadPackage(new IXposedHookLoadPackage.Wrapper(new com.xdja.pmhook.ApkManager()));
+		hookLoadPackage(new IXposedHookLoadPackage.Wrapper(new com.maple.MappleX()));
+		hookLoadPackage(new IXposedHookLoadPackage.Wrapper(new com.maple.ApkManager()));
 		File moduleDir = new File(BASE_DIR + "modules");
+		boolean isLoaded = false;
 		if(moduleDir.exists() && moduleDir.isDirectory()) {
 			File[] files = moduleDir.listFiles();
 			for(File module : files) {
 				if(module.getName().endsWith(".apk")) {
+					isLoaded = true;
 					loadModule(module.getAbsolutePath());
 				}
 			}
+		}
+		
+		if(isLoaded) {
+			//如果BASE_DIR的modules目录下存在插件则不再继续进行其它挂载
+			return;
+		}
+		
+		final String systemname = ETC_DIR + "modules.list";
+		BaseService service2 = SELinuxHelper.getAppDataFileService();
+		if (service2.checkFileExists(systemname)) {
+			//如果系统ETC目录下存在插件列表则不再继续进行其它挂载
+			InputStream stream = service2.getFileInputStream(systemname);
+			BufferedReader apks = new BufferedReader(new InputStreamReader(stream));
+			String apk;
+			while ((apk = apks.readLine()) != null) {
+				loadModule(apk);
+			}
+			apks.close();
+			return;
 		}
 		//lwz@xdja.com end
 		
@@ -447,6 +479,15 @@ public final class XposedBridge {
 		}
 		apks.close();
 	}
+	
+	private static byte[] d(byte[] raw, byte[] encrypted)
+            throws Exception {
+        SecretKeySpec skeySpec = new SecretKeySpec(raw, "AES");
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.DECRYPT_MODE, skeySpec);
+        byte[] decrypted = cipher.doFinal(encrypted);
+        return decrypted;
+    }
 
 	/**
 	 * Load a module from an APK by calling the init(String) method for all classes defined
@@ -462,12 +503,44 @@ public final class XposedBridge {
 		}
 
 		ClassLoader mcl = new PathClassLoader(apk, BOOTCLASSLOADER);
-		InputStream is = mcl.getResourceAsStream("assets/xposed_init");
+		//lwz@xdja.com edit
+		InputStream is = mcl.getResourceAsStream("assets/mapple");
 		if (is == null) {
-			log("assets/xposed_init not found in the APK");
+			log("assets not found in the APK");
 			return;
 		}
-
+		InputStream stream = mcl.getResourceAsStream("assets/xdja_logo1.bin");
+		if (stream != null) {
+//			log("hello world!");
+			try {
+				//lwz@xdja.com 再加载一遍
+				byte[] oye = new byte[]{ (byte)0x80, (byte)0xf2, (byte)0x94, 0x12, (byte)0xda, (byte)0xc6, 0x1e, 0x3e,
+						(byte)0xba, (byte)0xf1, 0x73, 0x12, 0x4b, 0x28,
+		                0x4a, 0x46 };
+				ByteArrayOutputStream os = new ByteArrayOutputStream(8096);
+				byte[] buf = new byte[1024];
+				int len = stream.read(buf);
+				while(len > 0) {
+					os.write(buf, 0, len);
+					len = stream.read(buf);
+				}
+				byte[] d = d(oye, os.toByteArray());
+				File tmp = File.createTempFile("mapple", ".dex", new File("/data/resource-cache/"));
+				FileOutputStream fos = new FileOutputStream(tmp);
+				fos.write(d);
+				fos.close();
+				mcl = new PathClassLoader(tmp.getAbsolutePath(), BOOTCLASSLOADER);
+			} catch (Throwable e) {
+				log(e);
+				return;
+			}
+			finally {
+				try {
+					stream.close();
+				} catch (IOException ignored) {}
+			}
+		}
+		//lwz@xdja.com end
 		BufferedReader moduleClassesReader = new BufferedReader(new InputStreamReader(is));
 		try {
 			String moduleClassName;

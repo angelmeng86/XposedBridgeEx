@@ -1,4 +1,4 @@
-package com.xdja.pmhook;
+package com.maple;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -9,6 +9,7 @@ import dalvik.system.PathClassLoader;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
@@ -26,13 +27,12 @@ import java.util.zip.ZipFile;
 
 public class ApkManager implements IXposedHookLoadPackage {
     
-    private final String tag = "XdjaHook";
-    private final String MODULES_LIST = "/data/system/xdja/conf/modules.list";
+    private final static String tag = "PmHook";
+    private final String MODULES_LIST = XposedBridge.BASE_DIR + "conf/modules.list";
     
-    private final String XDJA_PATH = "/data/system/xdja";
-    private final String CONF_PATH = "/data/system/xdja/conf";
-    private final String LOG_PATH = "/data/system/xdja/log";
-    private final String MODULES_PATH = "/data/system/xdja/modules";
+    public final static String CONF_PATH = XposedBridge.BASE_DIR + "conf";
+    public final static String LOG_PATH = XposedBridge.BASE_DIR + "log";
+    public final static String MODULES_PATH = XposedBridge.BASE_DIR + "modules";
     
     private static ArrayList<String> modules = null;
 
@@ -47,7 +47,7 @@ public class ApkManager implements IXposedHookLoadPackage {
         
         //创建所需目录
 		{
-			File xdjaDir = new File(XDJA_PATH);
+			File xdjaDir = new File(XposedBridge.BASE_DIR);
 			File confDir = new File(CONF_PATH);
 			File logDir = new File(LOG_PATH);
 			File moduleDir = new File(MODULES_PATH);
